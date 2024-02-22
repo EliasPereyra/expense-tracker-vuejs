@@ -1,39 +1,87 @@
 <script setup lang="ts">
+import { ref, computed, onMounted, type Ref } from "vue";
 import Header from "@/components/Header.vue";
 import IncomeExpense from "@/components/IncomeExpense.vue";
 import HistoryList from "@/components/HistoryList.vue";
 import AddTransactionForm from "@/components/AddTransactionForm.vue";
 
-const transactions = [
-  {
-    id: 1,
-    text: "Salary",
-    amount: -15.99,
-  },
-  {
-    id: 2,
-    text: "Computer",
-    amount: -300.0,
-  },
-  {
-    id: 3,
-    text: "Refrigerator",
-    amount: -85.0,
-  },
-  {
-    id: 4,
-    text: "Microphone",
-    amount: 55.45,
-  },
-];
+interface Transaction {
+  id: number;
+  text: string;
+  amount: number;
+}
+
+const transactions: Ref<Transaction[]> = ref([]);
+
+const saveTransactionsToLocalStorage = () => {
+  localStorage.setItem("transactions", JSON.stringify(transactions.value));
+};
+
+onMounted(() => {
+  const savedTransactions = JSON.parse(localStorage.getItem("transactions")!);
+
+  if (savedTransactions) {
+    transactions.value = savedTransactions;
+  }
+});
+
+const total = computed(() => {
+  return transactions.value.reduce((acc, trans) => {
+    return acc + trans.amount;
+  }, 0);
+});
+
+const income = computed(() => {
+  return transactions.value
+    .filter((trans) => trans.amount > 0)
+    .reduce((acc, trans) => {
+      return acc + trans.amount;
+    }, 0)
+    .toFixed(2);
+});
+
+const expense = computed(() => {
+  return transactions.value
+    .filter((trans) => trans.amount < 0)
+    .reduce((acc, trans) => {
+      return acc + trans.amount;
+    }, 0)
+    .toFixed(2);
+});
+
+const generateId = () => {
+  return Math.floor(Math.random() * 100000);
+};
+
+const handleSubmit = (transaction: { text: string; amount: number }) => {
+  const newTransaction = {
+    id: generateId(),
+    text: transaction.text,
+    amount: transaction.amount,
+  };
+
+  transactions.value.push(newTransaction);
+  saveTransactionsToLocalStorage();
+};
+
+const handleTransactionDeleted = (id: number) => {
+  transactions.value = transactions.value.filter(
+    (transaction) => transaction.id !== id
+  );
+
+  saveTransactionsToLocalStorage();
+};
 </script>
 
 <template>
   <main>
-    <Header />
-    <IncomeExpense />
-    <HistoryList />
-    <AddTransactionForm />
+    <Header :total="+total" />
+    <IncomeExpense :income="+income" :expense="+expense" />
+    <HistoryList
+      :transactions="transactions"
+      @transaction-deleted="handleTransactionDeleted"
+    />
+    <AddTransactionForm @transactionSubmit="handleSubmit" />
   </main>
 </template>
 
